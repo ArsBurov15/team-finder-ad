@@ -6,7 +6,11 @@ from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
-from django.contrib.auth.models import BaseUserManager, PermissionsMixin, AbstractBaseUser
+from django.contrib.auth.models import (
+    BaseUserManager,
+    PermissionsMixin,
+    AbstractBaseUser,
+)
 from .constants import (
     NAME_MAX_LENGTH,
     SURNAME_MAX_LENGTH,
@@ -18,19 +22,28 @@ from .constants import (
     AVATAR_FONT_PATH,
 )
 
+
 class UserManager(BaseUserManager):
     """Менеджер пользователей"""
 
-    def create_user(self, email, name, surname, phone=None, password=None, **extras):
+    def create_user(
+        self,
+        email,
+        name,
+        surname,
+        phone=None,
+        password=None,
+        **extras
+    ):
         if not email:
             raise ValueError('Укажите email')
         if not name:
             raise ValueError('Укажите ваше имя')
         if not surname:
             raise ValueError('Укажите вашу фамилию')
-        email=self.normalize_email(email)
+        email = self.normalize_email(email)
 
-        user=self.model(
+        user = self.model(
             email=email,
             name=name,
             surname=surname,
@@ -40,8 +53,16 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
-    
-    def create_superuser(self, email, name, surname, phone=None, password=None, **extras):
+
+    def create_superuser(
+        self,
+        email,
+        name,
+        surname,
+        phone=None,
+        password=None,
+        **extras
+    ):
         extras.setdefault('is_staff', True)
         extras.setdefault('is_superuser', True)
         extras.setdefault('is_active', True)
@@ -53,36 +74,36 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     """Модель пользователя"""
 
-    email=models.EmailField(
-        unique=True, 
+    email = models.EmailField(
+        unique=True,
         verbose_name='Email'
     )
-    name=models.CharField(
-        max_length=NAME_MAX_LENGTH, 
+    name = models.CharField(
+        max_length=NAME_MAX_LENGTH,
         verbose_name='Имя'
     )
-    surname=models.CharField(
-        max_length=SURNAME_MAX_LENGTH, 
+    surname = models.CharField(
+        max_length=SURNAME_MAX_LENGTH,
         verbose_name='Фамилия'
     )
-    avatar=models.ImageField(
+    avatar = models.ImageField(
         upload_to='avatars/',
         blank=True,
         verbose_name='Аватар'
     )
-    about=models.TextField(
+    about = models.TextField(
         blank=True,
         max_length=ABOUT_MAX_LENGTH,
         verbose_name='О себе'
     )
-    phone=models.CharField(
+    phone = models.CharField(
         max_length=PHONE_MAX_LENGTH,
         blank=True,
         unique=True,
         null=True,
         verbose_name='Телефон'
     )
-    github_url=models.URLField(
+    github_url = models.URLField(
         blank=True,
         verbose_name='Github'
     )
@@ -93,7 +114,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False, verbose_name='Персонал'
     )
     date_joined = models.DateTimeField(
-        default=timezone.now, 
+        default=timezone.now,
         verbose_name='Дата регистрации'
     )
 
@@ -105,26 +126,25 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name', 'surname']
-    objects=UserManager()
-
+    objects = UserManager()
 
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
         ordering = ['-date_joined']
-    
+
     def __str__(self):
         return f'{self.name} {self.surname}'
-    
+
     def get_full_name(self):
         return f'{self.name} {self.surname}'
 
     def generate_avatar_image(self):
         """Создание аватарки на основе имени пользователя"""
-        
+
         raw_name = getattr(self, 'name', None) or ''
         letter = (raw_name.strip() or 'U')[0].upper()
-        
+
         if self.pk:
             seed = self.pk
         else:
@@ -133,20 +153,20 @@ class User(AbstractBaseUser, PermissionsMixin):
                 digest_size=4
             ).digest()
             seed = int.from_bytes(hash_bytes, byteorder='big')
-        
+
         color_index = seed % len(AVATAR_COLORS)
         bg_color = AVATAR_COLORS[color_index]
-        
+
         image = Image.new('RGB', (AVATAR_SIZE, AVATAR_SIZE), bg_color)
         draw = ImageDraw.Draw(image)
-        
+
         font_path = pathlib.Path(settings.BASE_DIR) / AVATAR_FONT_PATH
-        
+
         try:
             font = ImageFont.truetype(str(font_path), AVATAR_TEXT_SIZE)
         except (IOError, OSError):
             font = ImageFont.load_default()
-        
+
         center = AVATAR_SIZE // 2
         draw.text(
             (center, center),
@@ -161,4 +181,3 @@ class User(AbstractBaseUser, PermissionsMixin):
         email_slug = self.email.split('@')[0] if self.email else 'user'
         filename = f'avatar_{email_slug}_{letter}.png'
         return ContentFile(buffer.getvalue(), name=filename)
-    

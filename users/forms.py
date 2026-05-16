@@ -3,22 +3,20 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
-from .constants import (
-    NAME_MAX_LENGTH,
-    SURNAME_MAX_LENGTH,
-    PHONE_MAX_LENGTH,
-    ABOUT_MAX_LENGTH
-)
+from .constants import PHONE_MAX_LENGTH
+
 
 User = get_user_model()
+
 
 class RegistrationForm(forms.ModelForm):
     """"Форма регистрации"""
 
     password = forms.CharField(
-        label="Пароль", 
+        label="Пароль",
         widget=forms.PasswordInput
     )
+
     class Meta:
         model = User
         fields = ("name", "surname", "email", "password")
@@ -27,31 +25,34 @@ class RegistrationForm(forms.ModelForm):
             "surname": "Фамилия",
             "email": "Email",
         }
-    
+
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if User.objects.filter(email=email).exists():
-            raise forms.ValidationError('Пользователь с таким email уже существует')
+            raise forms.ValidationError(
+                'Пользователь с таким email уже существует')
         return email
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password"])
-        
+
         if commit:
             user.save()
             if not user.avatar:
                 avatar_file = user.generate_avatar_image()
                 user.avatar.save(avatar_file.name, avatar_file, save=True)
-        
+
         return user
+
 
 class UpdatePasswordForm(forms.Form):
     """Форма смены пароля"""
 
     current_password = forms.CharField(
         label="Действующий пароль",
-        widget=forms.PasswordInput(attrs={'placeholder': 'Введите старый пароль'})
+        widget=forms.PasswordInput(
+            attrs={'placeholder': 'Введите старый пароль'})
     )
     password_prime = forms.CharField(
         label="Новый пароль",
@@ -61,40 +62,46 @@ class UpdatePasswordForm(forms.Form):
         label="Повтор нового пароля",
         widget=forms.PasswordInput(attrs={'placeholder': 'Введите еще раз'})
     )
+
     def __init__(self, user, *args, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
-    
+
     def clean_current_password(self):
         current_password = self.cleaned_data.get('current_password')
         if not self.user.check_password(current_password):
             raise forms.ValidationError('Неверный действующий пароль')
         return current_password
-    
+
     def clean_password_prime(self):
         password = self.cleaned_data.get('password_prime')
         if password and len(password) < 8:
-            raise forms.ValidationError('Пароль должен содержать минимум 8 символов')
+            raise forms.ValidationError(
+                'Пароль должен содержать минимум 8 символов')
         return password
-    
+
     def clean(self):
         cleaned_data = super().clean()
         password_prime = cleaned_data.get('password_prime')
         password_repeat = cleaned_data.get('password_repeat')
-        
-        if password_prime and password_repeat and password_prime != password_repeat:
+        if (
+            password_prime
+            and password_repeat
+            and password_prime != password_repeat
+        ):
             raise forms.ValidationError('Пароли не совпадают')
         return cleaned_data
-    
+
     def save(self):
         new_password = self.cleaned_data.get('password_prime')
         self.user.set_password(new_password)
         self.user.save()
         return self.user
 
+
 class LoginForm(forms.Form):
     """Форма входа"""
-    
+
     email = forms.EmailField(
         label="Email",
         widget=forms.EmailInput(attrs={'placeholder': 'Введите email'})
@@ -124,7 +131,7 @@ class LoginForm(forms.Form):
 
         self.user = authenticate(
             request=self.request,
-            username=account.email, 
+            username=account.email,
             password=password
         )
 
@@ -140,19 +147,20 @@ class LoginForm(forms.Form):
         return self.user
 
 
-
 class ProfileEditorForm(forms.ModelForm):
     phone = forms.CharField(
         max_length=PHONE_MAX_LENGTH,
         label="Контактный телефон",
         required=False,
-        widget=forms.TextInput(attrs={'placeholder': '+7XXXXXXXXXX или 8XXXXXXXXXX'})
+        widget=forms.TextInput(
+            attrs={'placeholder': '+7XXXXXXXXXX или 8XXXXXXXXXX'})
     )
-    
+
     github_url = forms.URLField(
         required=False,
         label="Профиль GitHub",
-        widget=forms.URLInput(attrs={'placeholder': 'https://github.com/username'})
+        widget=forms.URLInput(
+            attrs={'placeholder': 'https://github.com/username'})
     )
 
     class Meta:
@@ -165,21 +173,28 @@ class ProfileEditorForm(forms.ModelForm):
             'about': 'О себе',
         }
         widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'Введите имя'}),
-            'surname': forms.TextInput(attrs={'placeholder': 'Введите фамилию'}),
+            'name': forms.TextInput(
+                attrs={'placeholder': 'Введите имя'}
+            ),
+            'surname': forms.TextInput(
+                attrs={'placeholder': 'Введите фамилию'}
+            ),
             'avatar': forms.FileInput(),
-            'about': forms.Textarea(attrs={'placeholder': 'Расскажите о себе', 'rows': 4}),
+            'about': forms.Textarea(
+                attrs={'placeholder': 'Расскажите о себе', 'rows': 4}
+            ),
         }
 
     def clean_phone(self):
         """Валидация номера телефона."""
         phone = self.cleaned_data.get('phone')
-        
+
         if not phone:
             return phone
         digits = re.sub(r'\D', '', phone)
         if len(digits) not in (10, 11):
-            raise forms.ValidationError('Номер телефона должен содержать 10 или 11 цифр')
+            raise forms.ValidationError(
+                'Номер телефона должен содержать 10 или 11 цифр')
         if len(digits) == 11 and digits.startswith('8'):
             digits = '7' + digits[1:]
         elif len(digits) == 10:
@@ -188,9 +203,10 @@ class ProfileEditorForm(forms.ModelForm):
         user_query = User.objects.filter(phone=normalized_phone)
         if self.instance and self.instance.pk:
             user_query = user_query.exclude(pk=self.instance.pk)
-            
+
         if user_query.exists():
-            raise forms.ValidationError('Пользователь с таким номером телефона уже существует')
+            raise forms.ValidationError(
+                'Пользователь с таким номером телефона уже существует')
 
         return normalized_phone
 

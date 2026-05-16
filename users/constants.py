@@ -7,8 +7,12 @@ ABOUT_MAX_LENGTH = 256
 # Словарь фильтров для страницы пользователей
 FILTER_BUTTONS = {
     'authors_of_favorite_projects': 'Авторы избранных проектов',
-    'authors_of_my_participated_projects': 'Авторы проектов, в которых я участвую',
-    'users_who_like_my_projects': 'Пользователи, которым нравятся мои проекты',
+    'authors_of_my_participated_projects': (
+        'Авторы проектов, в которых я участвую'
+    ),
+    'users_who_like_my_projects': (
+        'Пользователи, которым нравятся мои проекты'
+    ),
     'participants_of_my_projects': 'Участники моих проектов',
 }
 
@@ -26,4 +30,7 @@ AVATAR_COLORS = [
 # Параметры аватара
 AVATAR_SIZE = 200
 AVATAR_TEXT_SIZE = 120
-AVATAR_FONT_PATH = 'static/fonts/Neue_Haas_Grotesk_Display_Pro_75_Bold.otf'
+AVATAR_FONT_PATH = (
+    "static/fonts/"
+    "Neue_Haas_Grotesk_Display_Pro_75_Bold.otf"
+)

@@ -1,9 +1,10 @@
 from django.db import models
 from django.conf import settings
-from .constants import(
-    PROJECT_NAME_MAX_LENGTH, 
+from .constants import (
+    PROJECT_NAME_MAX_LENGTH,
     STATUS_MAX_LENGTH
 )
+
 
 class Project(models.Model):
     """Модель проекта"""
@@ -49,11 +50,11 @@ class Project(models.Model):
         related_name='participated_projects',
         verbose_name='Участники'
     )
-    
+
     class Meta:
-        verbose_name='Проект'
-        verbose_name_plural='Проекты'
-        ordering=['-created_at']
+        verbose_name = 'Проект'
+        verbose_name_plural = 'Проекты'
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.name
