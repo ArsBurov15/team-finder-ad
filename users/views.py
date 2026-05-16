@@ -82,7 +82,7 @@ def user_list_view(request):
         page_obj = paginator.get_page(page_number)
         
         context = {
-            'participants': page_obj,
+            'page_obj': page_obj,
             'active_filter': '',
             'filter_options': FILTER_BUTTONS,
         }
@@ -109,7 +109,7 @@ def user_list_view(request):
     page_obj = paginator.get_page(page_number)
     
     context = {
-        'participants': page_obj,
+        'page_obj': page_obj,
         'active_filter': selected_filter,
         'filter_options': FILTER_BUTTONS,
     }

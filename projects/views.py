@@ -21,7 +21,7 @@ def project_list_view(request):
     current_page = request.GET.get('page')
     paginated_page = project_paginator.get_page(current_page)
     view_context = {
-        'projects': paginated_page,
+        'page_obj': paginated_page,
     }
     return render(request, 'projects/project_list.html', view_context)
 

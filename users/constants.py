@@ -11,3 +11,19 @@ FILTER_BUTTONS = {
     'users_who_like_my_projects': 'Пользователи, которым нравятся мои проекты',
     'participants_of_my_projects': 'Участники моих проектов',
 }
+
+# Палитра цветов для аватаров
+AVATAR_COLORS = [
+    '#FF0000',
+    '#00FF00',
+    '#0000FF',
+    '#FFA500',
+    '#800080',
+    '#00008B',
+    '#FFC0CB',
+]
+
+# Параметры аватара
+AVATAR_SIZE = 200
+AVATAR_TEXT_SIZE = 120
+AVATAR_FONT_PATH = 'static/fonts/Neue_Haas_Grotesk_Display_Pro_75_Bold.otf'

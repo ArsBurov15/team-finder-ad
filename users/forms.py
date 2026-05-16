@@ -37,8 +37,13 @@ class RegistrationForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password"])
+        
         if commit:
             user.save()
+            if not user.avatar:
+                avatar_file = user.generate_avatar_image()
+                user.avatar.save(avatar_file.name, avatar_file, save=True)
+        
         return user
 
 class UpdatePasswordForm(forms.Form):
