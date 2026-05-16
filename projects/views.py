@@ -183,20 +183,29 @@ def toggle_participate_view(request, pk):
 
     current_user = request.user
     target_project = get_object_or_404(Project, pk=pk)
+    if target_project.status != target_project.STATUS_OPEN:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Нельзя участвовать в закрытом проекте'
+        }, status=400)
+
     if target_project.owner == current_user:
         return JsonResponse({
             'status': 'error',
             'message': 'Организатор не может покинуть собственный проект'
         }, status=400)
+
     is_participating = current_user.participated_projects.filter(
         id=target_project.id).exists()
+
     if is_participating:
         current_user.participated_projects.remove(target_project)
         is_now_participating = False
     else:
         current_user.participated_projects.add(target_project)
         is_now_participating = True
+
     return JsonResponse({
         'status': 'ok',
-        'is_participant': is_now_participating
+        'participant': is_now_participating
     })

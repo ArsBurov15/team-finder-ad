@@ -63,7 +63,7 @@ def user_profile_view(request, pk):
     user_projects = user_projects.order_by('-created_at')
 
     context = {
-        'profile_owner': profile_owner,
+        'user': profile_owner,
         'user_projects': user_projects,
     }
 
@@ -119,19 +119,19 @@ def user_list_view(request):
 
     filtered_users = all_users
 
-    if selected_filter == 'authors_of_favorite_projects':
+    if selected_filter == 'owners-of-favorite-projects':
         filtered_users = filtered_users.filter(
             owned_projects__interested_users=request.user
         )
-    elif selected_filter == 'authors_of_my_participated_projects':
+    elif selected_filter == 'owners-of-participating-projects':
         filtered_users = filtered_users.filter(
             owned_projects__participants=request.user
         )
-    elif selected_filter == 'users_who_like_my_projects':
+    elif selected_filter == 'interested-in-my-projects':
         filtered_users = filtered_users.filter(
             favorites__owner=request.user
         )
-    elif selected_filter == 'participants_of_my_projects':
+    elif selected_filter == 'participants-of-my-projects':
         filtered_users = filtered_users.filter(
             participated_projects__owner=request.user
         )
@@ -163,8 +163,10 @@ def change_password_view(request):
             'users/change_password.html',
             {'form': empty_form}
         )
-
-    submitted_form = UpdatePasswordForm(request.POST, user=current_user)
+    submitted_form = UpdatePasswordForm(
+        user=current_user,
+        data=request.POST
+    )
 
     if submitted_form.is_valid():
         updated_user = submitted_form.save()

@@ -49,17 +49,17 @@ class RegistrationForm(forms.ModelForm):
 class UpdatePasswordForm(forms.Form):
     """Форма смены пароля"""
 
-    current_password = forms.CharField(
-        label="Действующий пароль",
+    old_password = forms.CharField(
+        label="Текущий пароль",
         widget=forms.PasswordInput(
             attrs={'placeholder': 'Введите старый пароль'})
     )
-    password_prime = forms.CharField(
+    new_password1 = forms.CharField(
         label="Новый пароль",
         widget=forms.PasswordInput(attrs={'placeholder': 'Минимум 8 символов'})
     )
-    password_repeat = forms.CharField(
-        label="Повтор нового пароля",
+    new_password2 = forms.CharField(
+        label="Подтвердите новый пароль",
         widget=forms.PasswordInput(attrs={'placeholder': 'Введите еще раз'})
     )
 
@@ -67,14 +67,14 @@ class UpdatePasswordForm(forms.Form):
         self.user = user
         super().__init__(*args, **kwargs)
 
-    def clean_current_password(self):
-        current_password = self.cleaned_data.get('current_password')
-        if not self.user.check_password(current_password):
+    def clean_old_password(self):
+        old_password = self.cleaned_data.get('old_password')
+        if not self.user.check_password(old_password):
             raise forms.ValidationError('Неверный действующий пароль')
-        return current_password
+        return old_password
 
-    def clean_password_prime(self):
-        password = self.cleaned_data.get('password_prime')
+    def clean_new_password1(self):
+        password = self.cleaned_data.get('new_password1')
         if password and len(password) < 8:
             raise forms.ValidationError(
                 'Пароль должен содержать минимум 8 символов')
@@ -82,18 +82,15 @@ class UpdatePasswordForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        password_prime = cleaned_data.get('password_prime')
-        password_repeat = cleaned_data.get('password_repeat')
-        if (
-            password_prime
-            and password_repeat
-            and password_prime != password_repeat
-        ):
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+
+        if password1 and password2 and password1 != password2:
             raise forms.ValidationError('Пароли не совпадают')
         return cleaned_data
 
     def save(self):
-        new_password = self.cleaned_data.get('password_prime')
+        new_password = self.cleaned_data.get('new_password1')
         self.user.set_password(new_password)
         self.user.save()
         return self.user
@@ -189,16 +186,21 @@ class ProfileEditorForm(forms.ModelForm):
         """Валидация номера телефона."""
         phone = self.cleaned_data.get('phone')
 
-        if not phone:
-            return phone
+        if not phone or not phone.strip():
+            return None
+
         digits = re.sub(r'\D', '', phone)
+
         if len(digits) not in (10, 11):
             raise forms.ValidationError(
-                'Номер телефона должен содержать 10 или 11 цифр')
+                'Номер телефона должен содержать 10 или 11 цифр'
+            )
+
         if len(digits) == 11 and digits.startswith('8'):
             digits = '7' + digits[1:]
         elif len(digits) == 10:
             digits = '7' + digits
+
         normalized_phone = '+' + digits
         user_query = User.objects.filter(phone=normalized_phone)
         if self.instance and self.instance.pk:
@@ -206,7 +208,8 @@ class ProfileEditorForm(forms.ModelForm):
 
         if user_query.exists():
             raise forms.ValidationError(
-                'Пользователь с таким номером телефона уже существует')
+                'Пользователь с таким номером телефона уже существует'
+            )
 
         return normalized_phone
 

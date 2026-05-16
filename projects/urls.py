@@ -11,7 +11,7 @@ urlpatterns = [
     path('<int:pk>/', views.project_detail_view, name='detail'),
     path('<int:pk>/toggle-favorite/',
          views.toggle_favorite_view, name='toggle_favorite'),
-    path('<int:pk>/close/', views.close_project_view, name='close'),
+    path('<int:pk>/complete/', views.close_project_view, name='complete'),
     path('<int:pk>/toggle-participate/',
          views.toggle_participate_view, name='toggle_participate'),
 ]
