@@ -85,6 +85,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=timezone.now, 
         verbose_name='Дата регистрации'
     )
+    favorites = models.ManyToManyField(
+        'projects.Project',
+        blank=True,
+        related_name='interested_users',
+        verbose_name='Избранные проекты'
+    )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name', 'surname']
     objects=UserManager()
