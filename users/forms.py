@@ -1,9 +1,14 @@
-import re
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
-from .constants import PHONE_MAX_LENGTH
+
+from users.constants import PHONE_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from users.utils import (
+    generate_avatar_image,
+    validate_github_url,
+    validate_phone,
+)
 
 
 User = get_user_model()
@@ -40,7 +45,7 @@ class RegistrationForm(forms.ModelForm):
         if commit:
             user.save()
             if not user.avatar:
-                avatar_file = user.generate_avatar_image()
+                avatar_file = generate_avatar_image(user)
                 user.avatar.save(avatar_file.name, avatar_file, save=True)
 
         return user
@@ -75,9 +80,11 @@ class UpdatePasswordForm(forms.Form):
 
     def clean_new_password1(self):
         password = self.cleaned_data.get('new_password1')
-        if password and len(password) < 8:
+        if password and len(password) < PASSWORD_MIN_LENGTH:
             raise forms.ValidationError(
-                'Пароль должен содержать минимум 8 символов')
+                f'Пароль должен содержать '
+                f'минимум {PASSWORD_MIN_LENGTH} символов'
+            )
         return password
 
     def clean(self):
@@ -183,44 +190,9 @@ class ProfileEditorForm(forms.ModelForm):
         }
 
     def clean_phone(self):
-        """Валидация номера телефона."""
         phone = self.cleaned_data.get('phone')
-
-        if not phone or not phone.strip():
-            return None
-
-        digits = re.sub(r'\D', '', phone)
-
-        if len(digits) not in (10, 11):
-            raise forms.ValidationError(
-                'Номер телефона должен содержать 10 или 11 цифр'
-            )
-
-        if len(digits) == 11 and digits.startswith('8'):
-            digits = '7' + digits[1:]
-        elif len(digits) == 10:
-            digits = '7' + digits
-
-        normalized_phone = '+' + digits
-        user_query = User.objects.filter(phone=normalized_phone)
-        if self.instance and self.instance.pk:
-            user_query = user_query.exclude(pk=self.instance.pk)
-
-        if user_query.exists():
-            raise forms.ValidationError(
-                'Пользователь с таким номером телефона уже существует'
-            )
-
-        return normalized_phone
+        return validate_phone(phone, instance=self.instance)
 
     def clean_github_url(self):
-        """Валидация корректности GitHub URL."""
         url = self.cleaned_data.get('github_url')
-
-        if not url:
-            return url
-
-        if 'github.com' not in url.lower():
-            raise forms.ValidationError('Ссылка должна вести на GitHub')
-
-        return url
+        return validate_github_url(url)

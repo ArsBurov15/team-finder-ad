@@ -1,36 +1,45 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.core.paginator import Paginator
-from .constants import PROJECTS_PER_PAGE
+from http import HTTPStatus
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.http import JsonResponse
-from .models import Project
-from .forms import ProjectForm
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+
+from projects.constants import PROJECTS_PER_PAGE
+from projects.forms import ProjectForm
+from projects.models import Project
+
+
+def paginate_projects(request, queryset):
+    """Функция пагинации"""
+
+    paginator = Paginator(queryset, PROJECTS_PER_PAGE)
+    page_number = request.GET.get('page')
+    return paginator.get_page(page_number)
 
 
 def project_list_view(request):
     """Список всех проектов"""
-
     projects_queryset = (
         Project.objects
         .select_related('owner')
         .prefetch_related('participants')
         .order_by('-created_at', '-id')
     )
-    project_paginator = Paginator(projects_queryset, PROJECTS_PER_PAGE)
-    current_page = request.GET.get('page')
-    paginated_page = project_paginator.get_page(current_page)
-    view_context = {
-        'page_obj': paginated_page,
-    }
-    return render(request, 'projects/project_list.html', view_context)
+    page_obj = paginate_projects(request, projects_queryset)
+
+    return render(
+        request,
+        'projects/project_list.html',
+        {'page_obj': page_obj}
+    )
 
 
 @login_required
 def favorite_projects_view(request):
     """Страница избранных проектов"""
-
     current_user = request.user
     favorite_queryset = (
         current_user.favorites
@@ -38,14 +47,13 @@ def favorite_projects_view(request):
         .prefetch_related('participants')
         .order_by('-created_at', '-id')
     )
-    favorite_paginator = Paginator(favorite_queryset, PROJECTS_PER_PAGE)
-    current_page = request.GET.get('page')
-    paginated_page = favorite_paginator.get_page(current_page)
+    page_obj = paginate_projects(request, favorite_queryset)
 
-    view_context = {
-        'projects': paginated_page,
-    }
-    return render(request, 'projects/favorite_projects.html', view_context)
+    return render(
+        request,
+        'projects/favorite_projects.html',
+        {'projects': page_obj}
+    )
 
 
 def project_detail_view(request, pk):
@@ -61,7 +69,9 @@ def project_detail_view(request, pk):
     is_favorited = False
     current_user = request.user
     if current_user.is_authenticated:
-        is_participant = current_user in project_instance.participants.all()
+        is_participant = project_instance.participants.filter(
+            pk=current_user.pk
+        ).exists()
         is_owner = project_instance.owner == current_user
         is_favorited = current_user.favorites.filter(
             pk=project_instance.pk).exists()
@@ -131,18 +141,20 @@ def toggle_favorite_view(request, pk):
     """Добавить/удалить проект из избранного"""
 
     user_profile = request.user
-    project_obj = get_object_or_404(Project, pk=pk)
-    is_already_favorited = user_profile.favorites.filter(
-        id=project_obj.id).exists()
-    if is_already_favorited:
+    project_obj = Project.objects.filter(pk=pk).first()
+    if project_obj is None:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Проект не найден'},
+            status=HTTPStatus.NOT_FOUND
+        )
+    is_favorited = user_profile.favorites.filter(id=project_obj.id).exists()
+    if is_favorited:
         user_profile.favorites.remove(project_obj)
-        is_now_favorited = False
     else:
         user_profile.favorites.add(project_obj)
-        is_now_favorited = True
     return JsonResponse({
         'status': 'ok',
-        'favorited': is_now_favorited
+        'favorited': not is_favorited
     })
 
 
@@ -150,26 +162,29 @@ def toggle_favorite_view(request, pk):
 @require_POST
 def close_project_view(request, pk):
     """Завершить проект"""
-    current_user = request.user
-    target_project = get_object_or_404(Project, pk=pk)
 
+    current_user = request.user
+    target_project = Project.objects.filter(pk=pk).first()
+
+    if target_project is None:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Проект не найден'},
+            status=HTTPStatus.NOT_FOUND
+        )
     if target_project.owner != current_user:
         error_response = {
             'status': 'error',
             'message': 'У вас нет прав на это действие',
         }
-        return JsonResponse(error_response, status=403)
-
+        return JsonResponse(error_response, status=HTTPStatus.FORBIDDEN)
     if target_project.status != target_project.STATUS_OPEN:
         error_response = {
             'status': 'error',
             'message': 'Проект уже завершён',
         }
-        return JsonResponse(error_response, status=400)
-
+        return JsonResponse(error_response, status=HTTPStatus.BAD_REQUEST)
     target_project.status = target_project.STATUS_CLOSED
     target_project.save(update_fields=['status'])
-
     return JsonResponse({
         'status': 'ok',
         'project_status': target_project.STATUS_CLOSED,
@@ -182,30 +197,30 @@ def toggle_participate_view(request, pk):
     """Участие/выход из проекта"""
 
     current_user = request.user
-    target_project = get_object_or_404(Project, pk=pk)
+    target_project = Project.objects.filter(pk=pk).first()
+    if target_project is None:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Проект не найден'},
+            status=HTTPStatus.NOT_FOUND
+        )
     if target_project.status != target_project.STATUS_OPEN:
         return JsonResponse({
             'status': 'error',
             'message': 'Нельзя участвовать в закрытом проекте'
-        }, status=400)
-
+        }, status=HTTPStatus.BAD_REQUEST)
     if target_project.owner == current_user:
         return JsonResponse({
             'status': 'error',
             'message': 'Организатор не может покинуть собственный проект'
-        }, status=400)
-
+        }, status=HTTPStatus.BAD_REQUEST)
     is_participating = current_user.participated_projects.filter(
-        id=target_project.id).exists()
-
+        id=target_project.id
+    ).exists()
     if is_participating:
         current_user.participated_projects.remove(target_project)
-        is_now_participating = False
     else:
         current_user.participated_projects.add(target_project)
-        is_now_participating = True
-
     return JsonResponse({
         'status': 'ok',
-        'participant': is_now_participating
+        'participant': not is_participating
     })

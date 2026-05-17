@@ -1,5 +1,6 @@
 from django import forms
-from .models import Project
+
+from projects.models import Project
 
 
 class ProjectForm(forms.ModelForm):

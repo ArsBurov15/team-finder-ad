@@ -1,22 +1,38 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.core.paginator import Paginator
 from django.contrib.auth import (
+    get_user_model,
     login,
     logout,
-    get_user_model,
     update_session_auth_hash,
 )
+
 from django.contrib.auth.decorators import login_required
-from .forms import (
-    RegistrationForm,
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+
+from users.constants import (
+    FILTER_AUTHORS_OF_FAVORITE,
+    FILTER_AUTHORS_OF_PARTICIPATING,
+    FILTER_INTERESTED_IN_MY,
+    FILTER_PARTICIPANTS_OF_MY,
+    FILTER_BUTTONS,
+    USERS_PER_PAGE,
+)
+from users.forms import (
     LoginForm,
     ProfileEditorForm,
+    RegistrationForm,
     UpdatePasswordForm,
 )
-from .constants import FILTER_BUTTONS
-from projects.models import Project
 
 User = get_user_model()
+
+
+def paginate_users(request, queryset):
+    """Функция пагинации для пользователей"""
+
+    paginator = Paginator(queryset, USERS_PER_PAGE)
+    page_number = request.GET.get('page')
+    return paginator.get_page(page_number)
 
 
 def sign_up_view(request):
@@ -58,7 +74,7 @@ def sign_out_view(request):
 def user_profile_view(request, pk):
     """Страница пользователя: профиль и проекты пользователя"""
     profile_owner = get_object_or_404(User, pk=pk)
-    user_projects = Project.objects.filter(owner=profile_owner)
+    user_projects = profile_owner.owned_projects.all()
     user_projects = user_projects.select_related('owner')
     user_projects = user_projects.order_by('-created_at')
 
@@ -106,10 +122,7 @@ def user_list_view(request):
     selected_filter = request.GET.get('filter')
 
     if not (request.user.is_authenticated and selected_filter):
-        paginator = Paginator(all_users, 12)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-
+        page_obj = paginate_users(request, all_users)
         context = {
             'page_obj': page_obj,
             'active_filter': '',
@@ -119,35 +132,31 @@ def user_list_view(request):
 
     filtered_users = all_users
 
-    if selected_filter == 'owners-of-favorite-projects':
+    if selected_filter == FILTER_AUTHORS_OF_FAVORITE:
         filtered_users = filtered_users.filter(
             owned_projects__interested_users=request.user
         )
-    elif selected_filter == 'owners-of-participating-projects':
+    elif selected_filter == FILTER_AUTHORS_OF_PARTICIPATING:
         filtered_users = filtered_users.filter(
             owned_projects__participants=request.user
         )
-    elif selected_filter == 'interested-in-my-projects':
+    elif selected_filter == FILTER_INTERESTED_IN_MY:
         filtered_users = filtered_users.filter(
             favorites__owner=request.user
         )
-    elif selected_filter == 'participants-of-my-projects':
+    elif selected_filter == FILTER_PARTICIPANTS_OF_MY:
         filtered_users = filtered_users.filter(
             participated_projects__owner=request.user
         )
 
     filtered_users = filtered_users.exclude(pk=request.user.pk).distinct()
 
-    paginator = Paginator(filtered_users, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
+    page_obj = paginate_users(request, filtered_users)
     context = {
         'page_obj': page_obj,
         'active_filter': selected_filter,
         'filter_options': FILTER_BUTTONS,
     }
-
     return render(request, 'users/participants.html', context)
 
 
