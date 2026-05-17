@@ -37,6 +37,7 @@ def paginate_users(request, queryset):
 
 def sign_up_view(request):
     """Регистрация пользователя"""
+
     registration_form = RegistrationForm(data=request.POST or None)
 
     if not registration_form.is_valid():
@@ -54,6 +55,7 @@ def sign_up_view(request):
 
 def login_view(request):
     """Аутентификация пользователя"""
+
     login_form = LoginForm(request=request, data=request.POST or None)
 
     if not login_form.is_valid():
@@ -67,12 +69,14 @@ def login_view(request):
 
 def sign_out_view(request):
     """Выход пользователя из системы"""
+
     logout(request)
     return redirect('projects:list')
 
 
 def user_profile_view(request, pk):
     """Страница пользователя: профиль и проекты пользователя"""
+
     profile_owner = get_object_or_404(User, pk=pk)
     user_projects = profile_owner.owned_projects.all()
     user_projects = user_projects.select_related('owner')
@@ -88,7 +92,8 @@ def user_profile_view(request, pk):
 
 @login_required
 def edit_profile_view(request):
-    """Редактирование профиля (только для владельца)"""
+    """Редактирование профиля"""
+
     current_user = request.user
 
     if request.method != 'POST':
@@ -117,7 +122,8 @@ def edit_profile_view(request):
 
 
 def user_list_view(request):
-    """Список пользователей с пагинацией"""
+    """Список пользователей"""
+
     all_users = User.objects.all().order_by('-date_joined')
     selected_filter = request.GET.get('filter')
 
@@ -162,7 +168,8 @@ def user_list_view(request):
 
 @login_required
 def change_password_view(request):
-    """Смена пароля (только для авторизованных пользователей)"""
+    """Смена пароля"""
+
     current_user = request.user
 
     if request.method != 'POST':
