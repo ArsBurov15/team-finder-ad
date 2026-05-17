@@ -1,8 +1,9 @@
-from django.db import models
 from django.conf import settings
-from .constants import (
+from django.db import models
+
+from projects.constants import (
     PROJECT_NAME_MAX_LENGTH,
-    STATUS_MAX_LENGTH
+    STATUS_MAX_LENGTH,
 )
 
 
